@@ -62,6 +62,7 @@ NVENCWrapper::NVENCWrapper(/* args */) {
     enc = NULL;
     media_config = NULL;
     opengl_config = NULL;
+    initializeParams = NULL;
     myID = ID_GEN++;
 
     
@@ -94,6 +95,12 @@ NVENCWrapper::~NVENCWrapper() {
 	if(media_config != NULL){
         free(media_config);
         media_config = NULL;
+    }
+
+    if(initializeParams != NULL){
+        free(initializeParams->encodeConfig);
+        free(initializeParams);
+        initializeParams = NULL;
     }
 
     pthread_mutex_destroy(&count_mutex);
@@ -321,6 +328,62 @@ int NVENCWrapper::GetNalData(void* nal_data){
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool NVENCWrapper::ConfigForRecording(){
+    std::stringstream params;
+    params << " -profile main" 
+        << " -bitrate " << media_config->bitRate 
+        << " -fps " << media_config->frameRate 
+        << " -bf 0"
+        << " -vbvbufsize " << media_config->bitRate   * 4
+        << " -lookahead 0";
+    NvEncoderInitParam encodeCLIOptions = NvEncoderInitParam(params.str().c_str());
+    NvEncoderInitParam *encodeCLIOptionsPtr = &encodeCLIOptions;
+    enc->CreateDefaultEncoderParams(initializeParams, encodeCLIOptionsPtr->GetEncodeGUID(),
+        encodeCLIOptionsPtr->GetPresetGUID(),encodeCLIOptionsPtr->GetTuningInfo());
+    encodeCLIOptionsPtr->SetInitParams(initializeParams, NV_ENC_BUFFER_FORMAT_ABGR);
+    
+    LOG(INFO) << "NativeOpenNVENC: CreateEncoder  ";
+
+    return true;
+}
+
+bool NVENCWrapper::ConfigForLowLatency(int nWidth,int nHeight){
+    NV_ENC_CONFIG* encodeConfig = initializeParams->encodeConfig;
+
+    std::stringstream params;
+    params << " -profile baseline" 
+        << " -codec h264"
+        << " -fps " << media_config->frameRate 
+        << " -rc cbr"
+        << " -tuninginfo lowlatency";
+    NvEncoderInitParam encodeCLIOptions = NvEncoderInitParam(params.str().c_str(),NULL,true);
+    NvEncoderInitParam *encodeCLIOptionsPtr = &encodeCLIOptions;
+    enc->CreateDefaultEncoderParams(initializeParams, encodeCLIOptionsPtr->GetEncodeGUID(), encodeCLIOptionsPtr->GetPresetGUID(),
+                encodeCLIOptionsPtr->GetTuningInfo());
+    
+    encodeConfig->gopLength = 60 * 60 * 2;
+    encodeConfig->frameIntervalP = 1;
+
+    if (encodeCLIOptionsPtr->IsCodecH264())
+    {
+        encodeConfig->encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+    }
+    else
+    {
+        encodeConfig->encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+    }
+
+    encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
+    encodeConfig->rcParams.multiPass = NV_ENC_TWO_PASS_FULL_RESOLUTION;
+    encodeConfig->rcParams.averageBitRate = (static_cast<unsigned int>(15.0f * nWidth * nHeight) / (1280 * 720)) * 100000;
+    encodeConfig->rcParams.vbvBufferSize = (encodeConfig->rcParams.averageBitRate * initializeParams->frameRateDen / initializeParams->frameRateNum) * 5;
+    encodeConfig->rcParams.maxBitRate = encodeConfig->rcParams.averageBitRate;
+    encodeConfig->rcParams.vbvInitialDelay = encodeConfig->rcParams.vbvBufferSize;
+
+    encodeCLIOptionsPtr->SetInitParams(initializeParams, NV_ENC_BUFFER_FORMAT_ABGR);
+    return true;
+}
+
 void NVENCWrapper::handlePreload(bool update_config){
     {
         //test output config
@@ -336,93 +399,67 @@ void NVENCWrapper::handlePreload(bool update_config){
                         << "update_config:" << update_config;
 
         LOG(INFO) << "====  config ======  " <<  params.str().c_str();
-       
     }
 
 
-    NV_ENC_BUFFER_FORMAT eFormat = NV_ENC_BUFFER_FORMAT_ABGR;
-    NV_ENC_INITIALIZE_PARAMS initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
     int nWidth = media_config->codecWidth;
     int nHeight = media_config->codecHeight;
-
     LOG(INFO) << "====  config ======  nWidth:" << nWidth << " nHeight:" << nHeight; 
 
-    if(!update_config){
+
+    if(update_config){
+        assert(enc);
+        assert(initializeParams);
+        if(initializeParams->encodeWidth != nWidth || initializeParams->encodeHeight != nHeight  ){
+            initializeParams->encodeWidth = nWidth;
+            initializeParams->encodeHeight = nHeight;
+
+            NV_ENC_RECONFIGURE_PARAMS reconfigureParams = { NV_ENC_RECONFIGURE_PARAMS_VER };
+            memcpy(&reconfigureParams.reInitEncodeParams, initializeParams, sizeof(initializeParams));
+
+            NV_ENC_CONFIG reInitCodecConfig = { NV_ENC_CONFIG_VER };
+            memcpy(&reInitCodecConfig, initializeParams->encodeConfig, sizeof(reInitCodecConfig));
+
+            reconfigureParams.reInitEncodeParams.encodeConfig = &reInitCodecConfig;
+
+            enc->Reconfigure(&reconfigureParams);
+        } 
+    }else{
+        assert(initializeParams == NULL);
         //创建opengl 环境
         SetupGLXResourcesWithShareContext(opengl_config->majorGLXContext,opengl_config->dpy,opengl_config->fbconfig,nWidth,nHeight);
         //准备数据
         preloadOpenglResource();
 
+        initializeParams = (NV_ENC_INITIALIZE_PARAMS*)malloc(sizeof(NV_ENC_INITIALIZE_PARAMS));
+        *initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
+        NV_ENC_CONFIG* encodeConfig = (NV_ENC_CONFIG*)malloc(sizeof(NV_ENC_CONFIG)); 
+        *encodeConfig = { NV_ENC_CONFIG_VER };
+        initializeParams->encodeConfig = encodeConfig;
+
         if(enc == NULL ){
-            enc = new NvEncoderGL(nWidth, nHeight, eFormat);
+            enc = new NvEncoderGL(nWidth, nHeight, NV_ENC_BUFFER_FORMAT_ABGR);
         }
 
         //创建配置
-        if (media_config->recordType == 0){
+        media_config->recordType == 0 ? ConfigForRecording() : ConfigForLowLatency(nWidth,nHeight);
+        enc->CreateEncoder(initializeParams);
+
+
+        {
+            //test output config
             std::stringstream params;
-            params << " -profile main" 
-                << " -bitrate " << media_config->bitRate 
-                << " -fps " << media_config->frameRate 
-                << " -bf 0"
-                << " -vbvbufsize " << media_config->bitRate   * 4
-                << " -lookahead 0";
-            NvEncoderInitParam encodeCLIOptions = NvEncoderInitParam(params.str().c_str());
-            NvEncoderInitParam *encodeCLIOptionsPtr = &encodeCLIOptions;
+            params << "encodeWidth:" << initializeParams->encodeWidth
+                            << "encodeHeight:" << initializeParams->encodeHeight
+                            << "frameRateNum:" << initializeParams->frameRateNum
+                            << "frameRateDen:" << initializeParams->frameRateDen;
 
-            NV_ENC_CONFIG encodeConfig = { NV_ENC_CONFIG_VER };
-            initializeParams.encodeConfig = &encodeConfig;
-            enc->CreateDefaultEncoderParams(&initializeParams, encodeCLIOptionsPtr->GetEncodeGUID(),
-                encodeCLIOptionsPtr->GetPresetGUID(),encodeCLIOptionsPtr->GetTuningInfo());
-            encodeCLIOptionsPtr->SetInitParams(&initializeParams, eFormat);
-            
-            LOG(INFO) << "NativeOpenNVENC: CreateEncoder  ";
-            enc->CreateEncoder(&initializeParams);
-        }else{
-            std::stringstream params;
-            params << " -profile baseline" 
-                << " -codec h264"
-                << " -fps " << media_config->frameRate 
-                << " -rc cbr"
-                << " -tuninginfo lowlatency";
-            NvEncoderInitParam encodeCLIOptions = NvEncoderInitParam(params.str().c_str(),NULL,true);
-            NvEncoderInitParam *encodeCLIOptionsPtr = &encodeCLIOptions;
-            NV_ENC_CONFIG encodeConfig = { NV_ENC_CONFIG_VER };
-            initializeParams.encodeConfig = &encodeConfig;
-            enc->CreateDefaultEncoderParams(&initializeParams, encodeCLIOptionsPtr->GetEncodeGUID(), encodeCLIOptionsPtr->GetPresetGUID(),
-                        encodeCLIOptionsPtr->GetTuningInfo() == NV_ENC_TUNING_INFO_LOW_LATENCY ? NV_ENC_TUNING_INFO_LOW_LATENCY : NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY);
-            encodeConfig.gopLength = 60 * 60 * 2;
-            encodeConfig.frameIntervalP = 1;
-            if (encodeCLIOptionsPtr->IsCodecH264())
-            {
-                encodeConfig.encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
-            }
-            else
-            {
-                encodeConfig.encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
-            }
-
-            encodeConfig.rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
-            encodeConfig.rcParams.multiPass = NV_ENC_TWO_PASS_FULL_RESOLUTION;
-            encodeConfig.rcParams.averageBitRate = (static_cast<unsigned int>(15.0f * nWidth * nHeight) / (1280 * 720)) * 100000;
-            encodeConfig.rcParams.vbvBufferSize = (encodeConfig.rcParams.averageBitRate * initializeParams.frameRateDen / initializeParams.frameRateNum) * 5;
-            encodeConfig.rcParams.maxBitRate = encodeConfig.rcParams.averageBitRate;
-            encodeConfig.rcParams.vbvInitialDelay = encodeConfig.rcParams.vbvBufferSize;
-
-            encodeCLIOptionsPtr->SetInitParams(&initializeParams, eFormat);
+            LOG(INFO) << "====  initializeParams ======  " <<  params.str().c_str();
         }
-
-        enc->CreateEncoder(&initializeParams);
-
-    }else{
-        //copy params
-        assert(enc);
-
-        NV_ENC_RECONFIGURE_PARAMS reconfigureParams = { NV_ENC_RECONFIGURE_PARAMS_VER };
-        memcpy(&reconfigureParams.reInitEncodeParams, &initializeParams, sizeof(initializeParams));
-        NV_ENC_CONFIG reInitCodecConfig = { NV_ENC_CONFIG_VER };
-        memcpy(&reInitCodecConfig, initializeParams.encodeConfig, sizeof(reInitCodecConfig));
-        reconfigureParams.reInitEncodeParams.encodeConfig = &reInitCodecConfig;
     }
+
+
+
 
     
 }

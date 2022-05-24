@@ -54,7 +54,10 @@ private:
     int nalCahceWriteIndex = 0;
     int nalCacheReadIndex = 0;
     bool flag_meta_fore_idr = false;
+    
 
+
+    NV_ENC_INITIALIZE_PARAMS* initializeParams;
 public:
     int myID;
     bool runing;
@@ -87,6 +90,10 @@ private:
 
     int CoutSpanSize(int targetValue);
     void PushDataFromMediaEncoder(void* data,int count );
+
+
+    bool ConfigForRecording();
+    bool ConfigForLowLatency(int nWidth,int nHeight);
 public:
     NVENCWrapper(/* args */);
     ~NVENCWrapper();
