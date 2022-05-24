@@ -49,6 +49,7 @@ namespace FFMediaTool
 
         public RenderTexture InputTexture;
 
+        public bool isLowLatency = false;
         
 
 
@@ -101,6 +102,11 @@ namespace FFMediaTool
                 return this;
             }
 
+            public Builder LowLatency(bool islowlatency){
+                temp.isLowLatency = islowlatency;
+                return this;
+            }
+
 
             public VideoRecordConfig Build(){
                 //Y轴反转
@@ -110,8 +116,8 @@ namespace FFMediaTool
         }
 
 
-        public MediaEncodeConfig BuildForNative(int recordType){
-            return new MediaEncodeConfig(InputTextureWidth,InputTextureHeight,EncodeWidth,EncodeHeight,FrameRate,BitRate,recordType);
+        public MediaEncodeConfig BuildForNative(){
+            return new MediaEncodeConfig(InputTextureWidth,InputTextureHeight,EncodeWidth,EncodeHeight,FrameRate,BitRate, isLowLatency? 1 :0);
         }
 
     }

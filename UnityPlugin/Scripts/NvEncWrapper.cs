@@ -28,7 +28,7 @@ namespace FFMediaTool{
             if(nativeObjPtr == IntPtr.Zero){
                 nativeObjPtr = CreateNVIDAVideoCodecNative();
             }
-            VideoRecordConfig.MediaEncodeConfig codecConfig = config.BuildForNative(0);
+            VideoRecordConfig.MediaEncodeConfig codecConfig = config.BuildForNative();
             IntPtr configPtr = Marshal.AllocHGlobal(Marshal.SizeOf(codecConfig));
             Marshal.StructureToPtr(codecConfig, configPtr, false);
             ConfigCodec(nativeObjPtr,configPtr);

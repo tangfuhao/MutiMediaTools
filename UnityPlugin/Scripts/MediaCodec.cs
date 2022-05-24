@@ -19,7 +19,7 @@ namespace FFMediaTool{
         IntPtr nalNativePtr;
 
         //初始化
-        public void InitWithConfig(VideoRecordConfig config){
+        public void UpdateConfig(VideoRecordConfig config){
             encodeWidth = config.EncodeWidth;
             encodeHeight = config.EncodeHeight;
 
@@ -64,8 +64,8 @@ namespace FFMediaTool{
             if(nvEncWrapper == null){
                 //获取当前OpenGL上下文的配置 配置编码器
                 nvEncWrapper = new NvEncWrapper();
-                nvEncWrapper.LaunchCodec(config);
             }
+            nvEncWrapper.LaunchCodec(config);
 
         }
 
