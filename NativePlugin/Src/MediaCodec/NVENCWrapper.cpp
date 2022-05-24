@@ -322,22 +322,22 @@ int NVENCWrapper::GetNalData(void* nal_data){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void NVENCWrapper::handlePreload(bool update_config){
-    // {
-    //     //test output config
-    //     LOG(INFO) << "add checck   3:" <<  &*(this->media_config) ;
-    //     std::stringstream params;
-    //     params << "inputWidth:" << media_config->inputWidth
-    //                     << "inputHeight:" << media_config->inputHeight
-    //                     << "codecWidth:" << media_config->codecWidth
-    //                     << "codecHeight:" << media_config->codecHeight
-    //                     << "frameRate:" << media_config->frameRate
-    //                     << "bitRate:" << media_config->bitRate
-    //                     << "recordType:" << media_config->recordType
-    //                     << "update_config:" << update_config;
+    {
+        //test output config
+        LOG(INFO) << "add checck   3:" <<  &*(this->media_config) ;
+        std::stringstream params;
+        params << "inputWidth:" << media_config->inputWidth
+                        << "inputHeight:" << media_config->inputHeight
+                        << "codecWidth:" << media_config->codecWidth
+                        << "codecHeight:" << media_config->codecHeight
+                        << "frameRate:" << media_config->frameRate
+                        << "bitRate:" << media_config->bitRate
+                        << "recordType:" << media_config->recordType
+                        << "update_config:" << update_config;
 
-    //     LOG(INFO) << "====  config ======  " <<  params.str().c_str();
+        LOG(INFO) << "====  config ======  " <<  params.str().c_str();
        
-    // }
+    }
 
 
     NV_ENC_BUFFER_FORMAT eFormat = NV_ENC_BUFFER_FORMAT_ABGR;
@@ -364,7 +364,7 @@ void NVENCWrapper::handlePreload(bool update_config){
                 << " -bitrate " << media_config->bitRate 
                 << " -fps " << media_config->frameRate 
                 << " -bf 0"
-                << " -vbvbufsize " << media_config->bitRate   * 4 * 10
+                << " -vbvbufsize " << media_config->bitRate   * 4
                 << " -lookahead 0";
             NvEncoderInitParam encodeCLIOptions = NvEncoderInitParam(params.str().c_str());
             NvEncoderInitParam *encodeCLIOptionsPtr = &encodeCLIOptions;

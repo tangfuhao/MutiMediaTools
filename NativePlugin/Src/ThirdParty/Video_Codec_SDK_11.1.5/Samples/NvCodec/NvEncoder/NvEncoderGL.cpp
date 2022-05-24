@@ -10,6 +10,7 @@
 */
 
 #include "NvEncoder/NvEncoderGL.h"
+#include "../Utils/Logger.h"
 
 NvEncoderGL::NvEncoderGL(uint32_t nWidth, uint32_t nHeight, NV_ENC_BUFFER_FORMAT eBufferFormat,
     uint32_t nExtraOutputDelay, bool bMotionEstimationOnly) :
@@ -49,21 +50,32 @@ void NvEncoderGL::AllocateInputBuffers(int32_t numInputBuffers)
             uint32_t tex;
 
             glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_RECTANGLE, tex);
+            glBindTexture(GL_TEXTURE_2D, tex);
 
             uint32_t chromaHeight = GetNumChromaPlanes(GetPixelFormat()) * GetChromaHeight(GetPixelFormat(), GetMaxEncodeHeight());
             if (GetPixelFormat() == NV_ENC_BUFFER_FORMAT_YV12 || GetPixelFormat() == NV_ENC_BUFFER_FORMAT_IYUV)
                 chromaHeight = GetChromaHeight(GetPixelFormat(), GetMaxEncodeHeight());
 
-            glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_R8,
-                GetWidthInBytes(GetPixelFormat(), GetMaxEncodeWidth()),
-                GetMaxEncodeHeight() + chromaHeight,
-                0, GL_RED, GL_UNSIGNED_BYTE, NULL);
 
-            glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+            // int textureWidth = GetWidthInBytes(GetPixelFormat(), GetMaxEncodeWidth());
+            // int textureHeight = GetMaxEncodeHeight() + chromaHeight;
+            int textureWidth = GetMaxEncodeWidth();
+            int textureHeight = GetMaxEncodeHeight() + chromaHeight;
+
+            LOG(INFO) << "#### AllocateInputBuffers: textureWidth:"<<textureWidth<<",textureHeight:"<<textureHeight;
+
+            
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                textureWidth,
+                textureHeight,
+                0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+
+
+            glBindTexture(GL_TEXTURE_2D, 0);
 
             pResource->texture = tex;
-            pResource->target = GL_TEXTURE_RECTANGLE;
+            pResource->target = GL_TEXTURE_2D;
             inputFrames.push_back(pResource);
         }
         RegisterInputResources(inputFrames, NV_ENC_INPUT_RESOURCE_TYPE_OPENGL_TEX,
