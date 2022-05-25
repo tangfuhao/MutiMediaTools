@@ -34,6 +34,7 @@ namespace FFMediaTool{
                     calBufferSize = calBufferSize >> 1;
                 }
             }
+            calBufferSize = Math.Max(calBufferSize,encodeWidth*encodeHeight);
             Debug.Log("初始化缓存大小 ： "+ calBufferSize);
             nalDataBuffer = new byte[calBufferSize];
             unsafe

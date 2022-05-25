@@ -14,7 +14,7 @@ MEDIA_CODEC_API void* CreateNVIDAVideoCodecNative();
 
 MEDIA_CODEC_API bool PreLoadVideoCodecNative(void* obj,int sw,int sh,int dw,int dh,int framerate,int bitrate,const char* path);
 
-MEDIA_CODEC_API bool EncodeTextureNative(void* obj,void* texture,bool forceIDR = false);
+MEDIA_CODEC_API bool EncodeTextureNative(void* obj,void* texture);
 
 MEDIA_CODEC_API bool ConfigCodec(void* obj,MediaEncodeConfig* config );
 

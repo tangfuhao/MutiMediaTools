@@ -165,6 +165,7 @@ void NVENCWrapper::LoopQueue(){
 }
 
 void NVENCWrapper::EncodeTexture(void* texture,bool forceIDR){
+    // LOG(INFO) << "EncodeTexture  check forceIDR:" << forceIDR << ",flag_meta_fore_idr:" <<flag_meta_fore_idr;
     sourceTex = (GLuint)(size_t)(texture);
 
     //发送事件
@@ -284,7 +285,7 @@ int NVENCWrapper::GetNalData(void* nal_data){
 }
 
  void NVENCWrapper::PushDataFromMediaEncoder(void* data,int count ){
-    LOG(INFO) << "====    pushDataFromMediaEncoder  start  count:"<<count;
+    // LOG(INFO) << "====    pushDataFromMediaEncoder  start  count:"<<count;
     if(NalCacheDatas == NULL){
         NalCacheDatas  = (NalCacheData*)calloc(5, sizeof(NalCacheData) );
     }
@@ -320,7 +321,7 @@ int NVENCWrapper::GetNalData(void* nal_data){
 
     nalCacheData->cacaheDataIndex = count;
     memcpy(nalCacheData->cacheCurrentData,data,nalCacheData->cacaheDataIndex);
-    LOG(INFO) << "====    pushDataFromMediaEncoder  finish  ,nalCacheReadIndex:"<<nalCacheReadIndex<<",nalCahceWriteIndex:"<<nalCahceWriteIndex<<",cacaheDataIndex:"<<nalCacheData->cacaheDataIndex;
+    // LOG(INFO) << "====    pushDataFromMediaEncoder  finish  ,nalCacheReadIndex:"<<nalCacheReadIndex<<",nalCahceWriteIndex:"<<nalCahceWriteIndex<<",cacaheDataIndex:"<<nalCacheData->cacaheDataIndex;
     pthread_mutex_unlock(&update_cache_mutex);
     
 
@@ -329,6 +330,7 @@ int NVENCWrapper::GetNalData(void* nal_data){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool NVENCWrapper::ConfigForRecording(){
+     LOG(INFO) << "配置记录型视频流";
     std::stringstream params;
     params << " -profile main" 
         << " -bitrate " << media_config->bitRate 
@@ -348,6 +350,7 @@ bool NVENCWrapper::ConfigForRecording(){
 }
 
 bool NVENCWrapper::ConfigForLowLatency(int nWidth,int nHeight){
+    LOG(INFO) << "配置直播型视频流";
     NV_ENC_CONFIG* encodeConfig = initializeParams->encodeConfig;
 
     std::stringstream params;
@@ -373,9 +376,11 @@ bool NVENCWrapper::ConfigForLowLatency(int nWidth,int nHeight){
         encodeConfig->encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
     }
 
+    
+
     encodeConfig->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
     encodeConfig->rcParams.multiPass = NV_ENC_TWO_PASS_FULL_RESOLUTION;
-    encodeConfig->rcParams.averageBitRate = (static_cast<unsigned int>(15.0f * nWidth * nHeight) / (1280 * 720)) * 100000;
+    encodeConfig->rcParams.averageBitRate = media_config->bitRate > 0 ? media_config->bitRate :  (static_cast<unsigned int>(15.0f * nWidth * nHeight) / (1280 * 720)) * 100000;
     encodeConfig->rcParams.vbvBufferSize = (encodeConfig->rcParams.averageBitRate * initializeParams->frameRateDen / initializeParams->frameRateNum) * 5;
     encodeConfig->rcParams.maxBitRate = encodeConfig->rcParams.averageBitRate;
     encodeConfig->rcParams.vbvInitialDelay = encodeConfig->rcParams.vbvBufferSize;
@@ -411,14 +416,15 @@ void NVENCWrapper::handlePreload(bool update_config){
         assert(enc);
         assert(initializeParams);
         if(initializeParams->encodeWidth != nWidth || initializeParams->encodeHeight != nHeight  ){
+            LOG(INFO) << "====    满足更新配置:";
             initializeParams->encodeWidth = nWidth;
             initializeParams->encodeHeight = nHeight;
 
             NV_ENC_RECONFIGURE_PARAMS reconfigureParams = { NV_ENC_RECONFIGURE_PARAMS_VER };
-            memcpy(&reconfigureParams.reInitEncodeParams, initializeParams, sizeof(initializeParams));
+            memcpy(&reconfigureParams.reInitEncodeParams, initializeParams, sizeof(NV_ENC_INITIALIZE_PARAMS));
 
             NV_ENC_CONFIG reInitCodecConfig = { NV_ENC_CONFIG_VER };
-            memcpy(&reInitCodecConfig, initializeParams->encodeConfig, sizeof(reInitCodecConfig));
+            memcpy(&reInitCodecConfig, initializeParams->encodeConfig, sizeof(NV_ENC_CONFIG));
 
             reconfigureParams.reInitEncodeParams.encodeConfig = &reInitCodecConfig;
 
@@ -563,6 +569,7 @@ void NVENCWrapper::handleEncodeTexture() {
 }
 
 void NVENCWrapper::handleCodecProcess() {
+    // LOG(INFO) << "编码器ID:" << myID << "Normal 编码";
     std::vector<std::vector<uint8_t>> vPacket;
     enc->EncodeFrame(vPacket);
     nFrame += (int)vPacket.size();
@@ -654,6 +661,6 @@ int NVENCWrapper::CoutSpanSize(int targetValue){
         temp = temp << 2;
     }
     
-    LOG(INFO) << "====    pushDataFromMediaEncoder 扩容 目标:" << targetValue << ",target : " << temp;
+    // LOG(INFO) << "====    pushDataFromMediaEncoder 扩容 目标:" << targetValue << ",target : " << temp;
     return temp;
 }

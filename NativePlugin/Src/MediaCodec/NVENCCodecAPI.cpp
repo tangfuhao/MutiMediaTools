@@ -9,12 +9,12 @@ MEDIA_CODEC_API void* CreateNVIDAVideoCodecNative(){
     return new NVENCWrapper();
 }
 
-MEDIA_CODEC_API bool EncodeTextureNative(void* obj,void* texture,bool forceIDR){
+MEDIA_CODEC_API bool EncodeTextureNative(void* obj,void* texture){
     glFinish();
     // //拷贝到编码器的input
     NVENCWrapper* dstObj = (NVENCWrapper*)obj;
     if(!dstObj) return false;
-    dstObj->EncodeTexture(texture,forceIDR);
+    dstObj->EncodeTexture(texture);
     return true;
 }
 

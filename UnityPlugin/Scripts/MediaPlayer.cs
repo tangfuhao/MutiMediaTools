@@ -104,6 +104,14 @@ namespace MetaWorks{
         IntPtr mediaplayerPtr = IntPtr.Zero;
 
         Texture2D _videoTexture;
+        public Texture2D videoTexture
+        {
+            get
+            {
+                return _videoTexture;
+            }
+        }
+
         RenderTexture _effectVideoTexture;
 
         bool isAbleToPlay = false;
@@ -149,6 +157,7 @@ namespace MetaWorks{
 
             RegisterMessageCallback(OnMessageCallback); 
             rawImage = transform.gameObject.GetComponent<RawImage>();
+            if(rawImage!=null) rawImage.material = Resources.Load<Material>("Materials/flip");
             imageEffectMaterial = new Material(Shader.Find("Metaworks/ImageEffectShader"));
 
 
@@ -335,8 +344,8 @@ namespace MetaWorks{
             string player_params = "";
             mediaplayerPtr = NativeCreateMediaPlayer(file,player_params);
             mediaplyersDic[mediaplayerPtr] = this;
-
-            rawImage.enabled = false;
+            if(rawImage!=null)
+                rawImage.enabled = false;
             
         }
 
@@ -437,7 +446,8 @@ namespace MetaWorks{
                     //指定src纹理
                     NativeMediaPlayerSetTexture(mediaplayerPtr,_videoTexture.GetNativeTexturePtr());
                     //指定dst纹理
-                    rawImage.texture = _effectVideoTexture;
+                    if(rawImage!=null)
+                        rawImage.texture = _effectVideoTexture;
                     //设置旋转shader
                     imageEffectMaterial.SetFloat("_RotationRadian", 0.0174f * (float)mediaInfo.rotation_degress);
                 }
