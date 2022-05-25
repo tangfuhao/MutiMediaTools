@@ -54,7 +54,8 @@
         "map": "cpp",
         "memory_resource": "cpp",
         "numeric": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "logger.h": "c"
     }
     
 }
