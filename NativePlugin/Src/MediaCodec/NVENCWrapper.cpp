@@ -581,6 +581,7 @@ void NVENCWrapper::handleCodecProcess() {
 }
 
 void NVENCWrapper::handleCodecForceIDRProcess() {
+    LOG(INFO) << "编码器ID:" << myID << "IDR 编码";
     std::vector<std::vector<uint8_t>> vPacket;
 
     NV_ENC_PIC_PARAMS picParams = { NV_ENC_PIC_PARAMS_VER };
