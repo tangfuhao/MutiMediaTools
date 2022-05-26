@@ -24,7 +24,7 @@
 *.lai
 *.la
 *.a
-*.lib
+
 
 # Executables
 *.exe
@@ -53,7 +53,7 @@
 *.pch
 
 # Libraries
-*.lib
+#*.lib
 *.a
 *.la
 *.lo
@@ -207,3 +207,21 @@ crashlytics-build.properties
 
 # Built Visual Studio Code Extensions
 *.vsix
+
+
+
+
+*.lib
+!nvcuvid.lib
+!nvencodeapi.lib
+!avcodec.lib
+!avformat.lib
+!avutil.lib
+!swresample.lib
+!freeglut.lib
+!freeglutd.lib
+!freeglut_static.lib
+!freeglut_staticd.lib
+!glew32.lib
+!glew32s.lib
+
