@@ -47,7 +47,7 @@ typedef struct {
     int        curnum;
 
     //++ for audio render thread
-    pthread_mutex_t lock;
+    pthread_mutex_t adev_lock;
     pthread_cond_t  cond;
     // pthread_t  thread;
     //-- for audio render thread

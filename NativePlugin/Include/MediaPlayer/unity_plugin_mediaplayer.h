@@ -17,9 +17,7 @@ typedef struct {
 
 //用来包装一个播放器的渲染控制
 typedef struct {
-    // pthread_mutex_t lock;
-    // pthread_cond_t  cond;
-    // pthread_cond_t  wait_write_cond;
+
     void* player;
     void* textureID;
     //准备写数据

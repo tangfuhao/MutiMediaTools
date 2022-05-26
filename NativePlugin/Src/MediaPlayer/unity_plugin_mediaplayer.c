@@ -16,7 +16,7 @@ int UnityWriteAudio(void *param,void* audioData,int length,int audioChannel){
     int result = 2;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)param;
     if(c && !(c->status & ADEV_CLOSE) && (c->status & ADEV_PAUSE) == 0 && !(c->status & ADEV_COMPLETED)){
-        pthread_mutex_lock(&c->lock);
+        pthread_mutex_lock(&c->adev_lock);
 
 
         if (c->curnum > 0 &&(c->status & ADEV_CLOSE) == 0 && (c->status & ADEV_COMPLETED) == 0 ) {
@@ -39,7 +39,7 @@ int UnityWriteAudio(void *param,void* audioData,int length,int audioChannel){
             }
         }
 
-        pthread_mutex_unlock(&c->lock);
+        pthread_mutex_unlock(&c->adev_lock);
     }else{
         if((c->status & ADEV_CLOSE) == 0 ){
             result=4;

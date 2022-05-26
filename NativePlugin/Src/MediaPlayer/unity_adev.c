@@ -64,7 +64,7 @@ void* adev_create(int type, int bufnum, int buflen, CMNVARS *cmnvars)
         // log_print("数据%d,  地址1:%d, 地址2:%d,地址3:%d,长度:%d",dataPtr,i,ctxt->pWaveHdr[i].data,xxx,buflen);
     }
     // create mutex & cond
-    pthread_mutex_init(&ctxt->lock, NULL);
+    pthread_mutex_init(&ctxt->adev_lock, NULL);
     pthread_cond_init (&ctxt->cond, NULL);
 
     // // create audio rendering thread
@@ -79,14 +79,14 @@ void adev_destroy(void *ctxt)
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
 
     // make audio rendering thread safely exit
-    pthread_mutex_lock(&c->lock);
+    pthread_mutex_lock(&c->adev_lock);
     c->status |= ADEV_CLOSE;
     pthread_cond_signal(&c->cond);
-    pthread_mutex_unlock(&c->lock);
+    pthread_mutex_unlock(&c->adev_lock);
     // pthread_join(c->thread, NULL);
 
     // close mutex & cond
-    pthread_mutex_destroy(&c->lock);
+    pthread_mutex_destroy(&c->adev_lock);
     pthread_cond_destroy (&c->cond);
 
 
@@ -103,12 +103,12 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
     // log_print("len : %d",len);
     // log_print("数据%d,  地址:%d, 长度:%d",c->tail,c->pWaveHdr[c->tail].data,c->pWaveHdr[c->tail].size);
     // log_print("我在");
-    pthread_mutex_lock(&c->lock);
+    pthread_mutex_lock(&c->adev_lock);
     // log_print("我ok了");
 
     while (c->curnum == c->bufnum && (c->status & ADEV_CLOSE) == 0)  {
         // log_print("音频设备 等待");
-        pthread_cond_wait(&c->cond, &c->lock);
+        pthread_cond_wait(&c->cond, &c->adev_lock);
         // log_print("音频设备  结束 等待");
     }
     if (c->curnum < c->bufnum) {
@@ -122,7 +122,7 @@ void adev_write(void *ctxt, uint8_t *buf, int len, int64_t pts)
             c->tail = 0;
         pthread_cond_signal(&c->cond);
     }
-    pthread_mutex_unlock(&c->lock);
+    pthread_mutex_unlock(&c->adev_lock);
 }
 
 void adev_pause(void *ctxt, int pause)
@@ -132,10 +132,8 @@ void adev_pause(void *ctxt, int pause)
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     if (pause) {
         c->status |=  ADEV_PAUSE;
-        // env->CallVoidMethod(c->jobj_at, c->jmid_at_pause);
     } else {
         c->status &= ~ADEV_PAUSE;
-        // env->CallVoidMethod(c->jobj_at, c->jmid_at_play );
     }
 }
 
@@ -143,10 +141,10 @@ void adev_reset(void *ctxt)
 {
     if (!ctxt) return;
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
-    pthread_mutex_lock(&c->lock);
+    pthread_mutex_lock(&c->adev_lock);
     c->head = c->tail = c->curnum = c->status = 0;
     pthread_cond_signal(&c->cond);
-    pthread_mutex_unlock(&c->lock);
+    pthread_mutex_unlock(&c->adev_lock);
 }
 
 void adev_setparam(void *ctxt, int id, void *param)
@@ -155,16 +153,16 @@ void adev_setparam(void *ctxt, int id, void *param)
     ADEV_CONTEXT *c = (ADEV_CONTEXT*)ctxt;
     switch (id) {
     case PARAM_RENDER_STOP:
-        pthread_mutex_lock(&c->lock);
+        pthread_mutex_lock(&c->adev_lock);
         c->status |= ADEV_CLOSE;
         pthread_cond_signal(&c->cond);
-        pthread_mutex_unlock(&c->lock);
+        pthread_mutex_unlock(&c->adev_lock);
         break;
     case PARAM_ADEV_RENDER_COMPLETED:
-        pthread_mutex_lock(&c->lock);
+        pthread_mutex_lock(&c->adev_lock);
         c->status |= ADEV_COMPLETED;
         pthread_cond_signal(&c->cond);
-        pthread_mutex_unlock(&c->lock);
+        pthread_mutex_unlock(&c->adev_lock);
         break;
     }
 }
