@@ -10,7 +10,9 @@ MEDIA_CODEC_API void* CreateNVIDAVideoCodecNative(){
 }
 
 MEDIA_CODEC_API bool EncodeTextureNative(void* obj,void* texture){
+#ifdef __linux
     glFinish();
+#endif
     // //拷贝到编码器的input
     NVENCWrapper* dstObj = (NVENCWrapper*)obj;
     if(!dstObj) return false;

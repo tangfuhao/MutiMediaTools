@@ -4,10 +4,9 @@ project(MediaTools VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-
+if(WIN32)
+else()
 find_package(PkgConfig)
-
-
 pkg_search_module(avcodec REQUIRED libavcodec)
 MESSAGE(STATUS "avcodec dirs:" ${avcodec_INCLUDE_DIRS})
 MESSAGE(STATUS "avcodec lib:" ${avcodec_LIBRARIES})
@@ -51,28 +50,50 @@ MESSAGE(STATUS "avdevice dirs:" ${avdevice_INCLUDE_DIRS})
 MESSAGE(STATUS "avdevice lib:" ${avdevice_LIBRARIES})
 include_directories(${avdevice_INCLUDE_DIRS})
 link_directories(${avdevice_LIBRARIES})
+endif()
 
 
+if(WIN32)
+set(CODEC_SOURCES ./MediaCodec/NVENCCodecAPI.cpp ./MediaCodec/NVENCWrapper.cpp)
+else()
 file(GLOB CODEC_SOURCES ./MediaCodec/*.cpp )
 set(RENDER_API_SROUCE ./Platform/RenderAPI_OpenGLCoreES.cpp  ./Platform/RenderingPlugin.cpp ./Platform/RenderAPI.cpp)
 file(GLOB_RECURSE PLAYER_SOURCES ./MediaPlayer/*.c )
+endif()
 
-add_library(MediaTools SHARED ${CODEC_SOURCES} ${RENDER_API_SROUCE} ${PLAYER_SOURCES})
+if(WIN32)
+    add_library(MediaTools SHARED ${CODEC_SOURCES} ${RENDER_API_SROUCE} )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSUPPORT_OPENGL_UNIFIED=1 -DUNITY_WIN=1 -fPIC")
+else()
+    add_library(MediaTools SHARED ${CODEC_SOURCES} ${RENDER_API_SROUCE} ${PLAYER_SOURCES})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSUPPORT_OPENGL_UNIFIED=1 -DUNITY_LINUX=1 -fPIC")
+endif()
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSUPPORT_OPENGL_UNIFIED=1 -DUNITY_LINUX=1 -fPIC")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include/MediaCodec)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include/Platform)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include/Platform/Unity)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Video_Codec_SDK_11.1.5/Samples/AppEncode/AppEncGL)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include/MediaPlayer)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../Include/MediaPlayer/mediaplayer)
 
 
+if(WIN32)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Video_Codec_SDK_11.1.5/Samples/AppEncode/AppEncCuda)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Video_Codec_SDK_11.1.5/Samples)
+else()
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Video_Codec_SDK_11.1.5/Samples/AppEncode/AppEncGL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/Video_Codec_SDK_11.1.5/Samples)
+endif()
 
+
+
+
+if(WIN32)
+target_link_libraries(MediaTools AppEncCuda ${avcodec_LIBRARIES} ${avfilter_LIBRARIES} ${swresample_LIBRARIES} ${swscale_LIBRARIES} ${avformat_LIBRARIES} ${avutil_LIBRARIES} ${avdevice_LIBRARIES} -lpthread)
+else()
 target_link_libraries(MediaTools AppEncGL ${avcodec_LIBRARIES} ${avfilter_LIBRARIES} ${swresample_LIBRARIES} ${swscale_LIBRARIES} ${avformat_LIBRARIES} ${avutil_LIBRARIES} ${avdevice_LIBRARIES})
+endif()
 
 
 

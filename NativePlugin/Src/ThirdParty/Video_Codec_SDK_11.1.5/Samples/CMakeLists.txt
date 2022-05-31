@@ -81,10 +81,12 @@ endif()
 
 
 if(WIN32)
-    add_subdirectory(AppEncode/AppEncD3D12)
-    add_subdirectory(AppEncode/AppEncD3D11)
-    add_subdirectory(AppEncode/AppEncD3D9)
-    add_subdirectory(AppDecode/AppDecD3D)
+    # add_subdirectory(AppEncode/AppEncD3D12)
+    # add_subdirectory(AppEncode/AppEncD3D11)
+    # add_subdirectory(AppEncode/AppEncD3D9)
+    # add_subdirectory(AppDecode/AppDecD3D)
+    add_subdirectory(AppEncode/AppEncCuda)
+    
 else ()
     #Need only linux Makefile for this
     add_subdirectory(AppEncode/AppEncGL)

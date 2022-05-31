@@ -55,7 +55,10 @@
         "memory_resource": "cpp",
         "numeric": "cpp",
         "cinttypes": "cpp",
-        "logger.h": "c"
+        "logger.h": "c",
+        "__functional_base": "cpp",
+        "locale": "cpp",
+        "__string": "cpp"
     }
     
 }

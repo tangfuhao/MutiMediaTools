@@ -1,12 +1,16 @@
 #pragma once
 #include <fstream>
 #include "../Utils/Logger.h"
-#include "NvEncoder/NvEncoderGL.h"
 #include "MediaEncodeConfig.h"
+#ifdef __linux
+#include "NvEncoder/NvEncoderGL.h"
 #include "OpenGLConfig.h"
+#else
+#include "NvEncoder/NvEncoderCuda.h"
+#endif
 
 class NvEncoderGL;
-
+class NvEncoderCuda;
 
 struct NalCacheData
 {
@@ -26,11 +30,13 @@ class NVENCWrapper
 {
 private:
     static int ID_GEN;
-    
-    //编码器核心
-    NvEncoderGL* enc;
+
+    MediaEncodeConfig* media_config;
     //当前帧Index
     int nFrame = 0;
+#ifdef __linux    
+    //编码器核心
+    NvEncoderGL* enc;
     //帧缓存
     unsigned int fbo;
     //顶点
@@ -40,14 +46,17 @@ private:
     //shader输入纹理ID
     unsigned int textureSamplerID;
     GLuint sourceTex;
-
     //manual free
-    MediaEncodeConfig* media_config;
     OpenGLConfig* opengl_config;
 
     // data callback
     // void (*DataCallBack)(void * data, int data_size);
-
+#else
+    //编码器核心
+    NvEncoderCuda* enc;
+    //rgba数据
+    void* pixelData;
+#endif
 
     //cache nal data 
     NalCacheData*  NalCacheDatas  = NULL;
@@ -101,6 +110,7 @@ public:
     //通过预设的参数  加载
     bool UpdateConfig(MediaEncodeConfig* config);
     void EncodeTexture(void* texture,bool forceIDR = false);
+
     void StopEncode();
     void LoopQueue();
     int GetNalData(void* nal_data);

@@ -1,10 +1,13 @@
 #include "NVENCWrapper.h"
 #include "../Utils/NvEncoderCLIOptions.h"
 #include "../Utils/NvCodecUtils.h"
+#include <pthread.h>
+
+#ifdef __linux
 #include "GraphicsUtils.h"
 #include "RenderAPI.h"
 #include "shader.hpp"
-#include <pthread.h>
+#endif
 //#include <FreeImage.h>
 
 #define VertexShaderCode \
@@ -29,9 +32,13 @@ void main(){\n\
     color.rgb = pow(color.rgb, vec3(1.0/2.2));\n\
 }"
 
-extern RenderAPI* s_CurrentAPI;
 
 simplelogger::Logger *logger = simplelogger::LoggerFactory::CreateConsoleLogger();
+
+
+#ifdef __linux
+extern RenderAPI* s_CurrentAPI;
+#endif
 
 namespace NVENCWrapperParams{
     const int INIT = 0;
@@ -53,7 +60,8 @@ void* ExcuteCodecThread(void *wrapper){
 
     NvidiaWrapper->LoopQueue();
     pthread_exit(NULL);
-     LOG(INFO) << "ExcuteCodecThread: pthread_exit ";
+    LOG(INFO) << "ExcuteCodecThread: pthread_exit ";
+    return NULL;
 }
 
 
@@ -61,9 +69,12 @@ NVENCWrapper::NVENCWrapper(/* args */) {
     runing = false;
     enc = NULL;
     media_config = NULL;
-    opengl_config = NULL;
     initializeParams = NULL;
     myID = ID_GEN++;
+    pixelData = NULL;
+    #ifdef __linux
+    opengl_config = NULL;
+    #endif
 
     
     pthread_mutex_init(&count_mutex, NULL);
@@ -164,9 +175,19 @@ void NVENCWrapper::LoopQueue(){
     pthread_mutex_unlock(&(this->event_mutex));
 }
 
+
 void NVENCWrapper::EncodeTexture(void* texture,bool forceIDR){
-    // LOG(INFO) << "EncodeTexture  check forceIDR:" << forceIDR << ",flag_meta_fore_idr:" <<flag_meta_fore_idr;
+    #ifdef __linux
     sourceTex = (GLuint)(size_t)(texture);
+    #else
+    LOG(INFO) << "NVENCWrapper:  EncodeTexture";
+    if(this->pixelData == NULL){
+        LOG(INFO) << "创建像素缓存:" << enc->GetFrameSize();
+        this->pixelData = malloc(enc->GetFrameSize());
+    }
+    // memset(this->pixelData,100,enc->GetFrameSize());
+    memcpy(this->pixelData,texture,enc->GetFrameSize());
+    #endif
 
     //发送事件
     pthread_mutex_lock(&(event_mutex));
@@ -194,12 +215,17 @@ void NVENCWrapper::StopEncode() {
     //等待编码器结束
     pthread_join(tids,NULL);
     LOG(INFO) << "编码器ID:" << myID << "完成结束操作";
+
+
+    
 }
 
 bool NVENCWrapper::UpdateConfig(MediaEncodeConfig* config){
     LOG(INFO) << "====    UpdateConfig  bitRate:  "<< config->bitRate;
     if(config == NULL) return false;
+    #ifdef __linux
     if(s_CurrentAPI->openglConfig == NULL) return false;
+    #endif
     //更新配置
     if(this->media_config){
         memcpy(this->media_config,config,sizeof(MediaEncodeConfig));
@@ -212,12 +238,14 @@ bool NVENCWrapper::UpdateConfig(MediaEncodeConfig* config){
     }else{
         void* temp = malloc(sizeof(MediaEncodeConfig));
         memcpy(temp,config,sizeof(MediaEncodeConfig));
-
+        
         // LOG(INFO) << "add checck   1:" <<  &*(this->media_config) << " 2:" <<  &*config << " 3:" << temp;
         this->media_config = (MediaEncodeConfig*)temp;
+
+        #ifdef __linux
         // LOG(INFO) << "add checck   2:" <<  &*(this->media_config) << " 2:" <<  &*config;
         this->opengl_config = (OpenGLConfig*)s_CurrentAPI->openglConfig;
-
+        #endif
         // {
         //     std::stringstream params;
         //     params << "inputWidth:" << config->inputWidth
@@ -256,6 +284,7 @@ bool NVENCWrapper::UpdateConfig(MediaEncodeConfig* config){
 }
 
 int NVENCWrapper::GetNalData(void* nal_data){
+    LOG(INFO) << "NVENCWrapper:  GetNalData";
     if(NalCacheDatas == NULL){
         NalCacheDatas  = (NalCacheData*)calloc(5, sizeof(NalCacheData) );
     }
@@ -432,10 +461,13 @@ void NVENCWrapper::handlePreload(bool update_config){
         } 
     }else{
         assert(initializeParams == NULL);
+
+        #ifdef __linux
         //创建opengl 环境
         SetupGLXResourcesWithShareContext(opengl_config->majorGLXContext,opengl_config->dpy,opengl_config->fbconfig,nWidth,nHeight);
         //准备数据
         preloadOpenglResource();
+        #endif
 
         initializeParams = (NV_ENC_INITIALIZE_PARAMS*)malloc(sizeof(NV_ENC_INITIALIZE_PARAMS));
         *initializeParams = { NV_ENC_INITIALIZE_PARAMS_VER };
@@ -444,7 +476,30 @@ void NVENCWrapper::handlePreload(bool update_config){
         initializeParams->encodeConfig = encodeConfig;
 
         if(enc == NULL ){
-            enc = new NvEncoderGL(nWidth, nHeight, NV_ENC_BUFFER_FORMAT_ABGR);
+            #ifdef __linux
+                enc = new NvEncoderGL(nWidth, nHeight, NV_ENC_BUFFER_FORMAT_ABGR);
+            #else
+
+            ck(cuInit(0));
+            int nGpu = 0;
+            int iGpu = 0;
+            ck(cuDeviceGetCount(&nGpu));
+            if (iGpu < 0 || iGpu >= nGpu)
+            {
+                std::cout << "GPU ordinal out of range. Should be within [" << 0 << ", " << nGpu - 1 << "]" << std::endl;
+                return ;
+            }
+            CUdevice cuDevice = 0;
+            ck(cuDeviceGet(&cuDevice, iGpu));
+            char szDeviceName[80];
+            ck(cuDeviceGetName(szDeviceName, sizeof(szDeviceName), cuDevice));
+            std::cout << "GPU in use: " << szDeviceName << std::endl;
+            CUcontext cuContext = NULL;
+            ck(cuCtxCreate(&cuContext, 0, cuDevice));
+            enc = new NvEncoderCuda(cuContext,nWidth, nHeight, NV_ENC_BUFFER_FORMAT_ABGR,0);
+
+
+            #endif
         }
 
         //创建配置
@@ -471,7 +526,7 @@ void NVENCWrapper::handlePreload(bool update_config){
 }
 
 void NVENCWrapper::preloadOpenglResource(){
-    
+    #ifdef __linux
     //创建FBO
     glGenFramebuffers(1,&fbo);
     // 绑定帧缓存
@@ -508,10 +563,11 @@ void NVENCWrapper::preloadOpenglResource(){
     // quad_programID = LoadShaders("/home/fu/Downloads/Passthrough.vertexshader","/home/fu/Downloads/SimpleTexture.fragmentshader");
     // 获取输入纹理id
 	textureSamplerID = glGetUniformLocation(quad_programID, "textureSampler");
-
+    #endif
 }
 
 void NVENCWrapper::handleEncodeTexture() {
+    #ifdef __linux
 	const NvEncInputFrame* encoderInputFrame = enc->GetNextInputFrame();
     NV_ENC_INPUT_RESOURCE_OPENGL_TEX *pResource = (NV_ENC_INPUT_RESOURCE_OPENGL_TEX *)encoderInputFrame->inputPtr;
 
@@ -566,12 +622,34 @@ void NVENCWrapper::handleEncodeTexture() {
 
     //刷新
     glFinish();
+    #else
+    
+    const NvEncInputFrame* encoderInputFrame = enc->GetNextInputFrame();
+    NvEncoderCuda::CopyToDeviceFrame(enc->m_cuContext,
+        pixelData,
+        0, 
+        (CUdeviceptr)encoderInputFrame->inputPtr,
+        (int)encoderInputFrame->pitch,
+        enc->GetEncodeWidth(),
+        enc->GetEncodeHeight(),
+        CU_MEMORYTYPE_HOST, 
+        encoderInputFrame->bufferFormat,
+        encoderInputFrame->chromaOffsets,
+        encoderInputFrame->numChromaPlanes);
+
+    #endif
 }
 
 void NVENCWrapper::handleCodecProcess() {
     // LOG(INFO) << "编码器ID:" << myID << "Normal 编码";
     std::vector<std::vector<uint8_t>> vPacket;
+#ifdef __linux 
     enc->EncodeFrame(vPacket);
+#else
+    NV_ENC_PIC_PARAMS picParams = {NV_ENC_PIC_PARAMS_VER};
+    picParams.encodePicFlags = 0;
+    enc->EncodeFrame(vPacket,&picParams);
+#endif
     nFrame += (int)vPacket.size();
 
     for (std::vector<uint8_t> &packet : vPacket)
@@ -639,6 +717,7 @@ void NVENCWrapper::handleStopEncode() {
 }
 //释放opengl资源 子线程中
 void NVENCWrapper::handleReleaseResource(){
+    #ifdef __linux
     // 清理 VBO 和 shader
 	glDeleteBuffers(1, &quad_vertexbuffer);
 	glDeleteProgram(quad_programID);
@@ -648,6 +727,7 @@ void NVENCWrapper::handleReleaseResource(){
     //清理GLXDrawable 和 context
     glXDestroyPbuffer(glXGetCurrentDisplay(),glXGetCurrentDrawable());
     glXDestroyContext(glXGetCurrentDisplay(),glXGetCurrentContext());
+    #endif
 }
 
 int NVENCWrapper::CoutSpanSize(int targetValue){

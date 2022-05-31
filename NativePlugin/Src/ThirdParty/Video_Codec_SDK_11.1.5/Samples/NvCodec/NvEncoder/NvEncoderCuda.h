@@ -103,7 +103,7 @@ private:
     */
     void ReleaseCudaResources();
 
-protected:
+public:
     CUcontext m_cuContext;
 
 private:
