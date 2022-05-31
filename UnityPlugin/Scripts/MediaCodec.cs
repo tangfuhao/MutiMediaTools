@@ -14,6 +14,10 @@ namespace FFMediaTool{
         int encodeWidth;
         int encodeHeight;
         Material mat;
+#if UNITY_STANDALONE_WIN
+        Material flipY = null;
+#endif
+
 
         byte[] nalDataBuffer;
         IntPtr nalNativePtr;
@@ -87,11 +91,41 @@ namespace FFMediaTool{
                 //剪切
                 RenderTexture tempTexture = RenderTexture.GetTemporary(encodeWidth, encodeHeight);
                 Graphics.Blit(texture,tempTexture,mat);
-                nvEncWrapper.EncodeTexture(tempTexture.GetNativeTexturePtr());
+                PushTextureToCodec(tempTexture);
                 RenderTexture.ReleaseTemporary(tempTexture);
             }else{
-                nvEncWrapper.EncodeTexture(texture.GetNativeTexturePtr());
+                PushTextureToCodec(texture);
             }
+        }
+        private Texture2D myTexture2D = null;
+        private void PushTextureToCodec(RenderTexture texture)
+        {
+#if UNITY_STANDALONE_WIN
+            if (flipY == null) flipY = new Material(Shader.Find("MetaWorks/ImageFlipY"));
+            RenderTexture destScreenPixelRT = RenderTexture.GetTemporary((int)texture.width, (int)texture.height, 0, RenderTextureFormat.ARGB32);
+            Graphics.Blit(texture, destScreenPixelRT, flipY);
+            RenderTexture lastTexture = RenderTexture.active;
+            if(myTexture2D == null)
+            {
+                myTexture2D = new Texture2D(destScreenPixelRT.width, destScreenPixelRT.height);
+            }
+            RenderTexture.active = destScreenPixelRT;
+            myTexture2D.ReadPixels(new Rect(0, 0, destScreenPixelRT.width, destScreenPixelRT.height), 0, 0);
+            myTexture2D.Apply();
+            NativeArray<byte> nativeByteArray = myTexture2D.GetRawTextureData<byte>();
+            unsafe
+            {
+                //var ptr = (IntPtr)Unity.Collections.LowLevel.Unsafe.UnsafeArrayUtility.GetUnsafePtr(nativeByteArray); // void* -> IntPtr explicit conversion.
+                IntPtr textureDataPtr = (IntPtr)Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility.GetUnsafePtr(nativeByteArray);
+                nvEncWrapper.EncodeTexture(textureDataPtr);
+            }
+            RenderTexture.active = lastTexture;
+            RenderTexture.ReleaseTemporary(destScreenPixelRT);
+#endif
+
+#if UNITY_STANDALONE_LINUX
+            nvEncWrapper.EncodeTexture(texture.GetNativeTexturePtr());
+#endif
         }
 
         public byte[] GetNalData(out int size){
