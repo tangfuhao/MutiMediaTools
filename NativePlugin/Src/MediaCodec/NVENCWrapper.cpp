@@ -71,9 +71,10 @@ NVENCWrapper::NVENCWrapper(/* args */) {
     media_config = NULL;
     initializeParams = NULL;
     myID = ID_GEN++;
-    pixelData = NULL;
     #ifdef __linux
     opengl_config = NULL;
+    #else
+    pixelData = NULL;
     #endif
 
     

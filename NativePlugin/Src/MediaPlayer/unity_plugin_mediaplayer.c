@@ -192,7 +192,7 @@ void* NativeCreateMediaPlayer (const char* _file,const char* _player_params){
 
 
     PLAYER_WRAPPER* player_wrapper =  (PLAYER_WRAPPER*)calloc(1, sizeof(PLAYER_WRAPPER));
-    if(player_wrapper == NULL) return;
+    if(player_wrapper == NULL) return NULL;
     // pthread_mutex_init(&player_wrapper->lock, NULL);
     // pthread_cond_init (&player_wrapper->cond, NULL);
     // pthread_cond_init (&player_wrapper->wait_write_cond, NULL);

@@ -1,8 +1,8 @@
 #include "stdefine.h"
 #include"keyframelist.h"
-
-
-
+#include <stdlib.h> 
+#include <math.h>
+#include <stdio.h>
 // int main(void)
 // {
 // 	KEYFRAMELIST arr;
@@ -80,7 +80,7 @@ void keyframe_list_resize(KEYFRAMELIST *pArr)
 			newArr[i] = pArr->pElements[i];
 		}
 		free(pArr->pElements);
-		pArr->pElements = newArr;
+		pArr->pElements = (int64_t*)newArr;
 		pArr->size = newSize;
 	}
 }
@@ -143,8 +143,8 @@ void keyframe_list_sort(KEYFRAMELIST *pArr){
 }
 
 int64_t keyframe_list_get(KEYFRAMELIST *pArr,int index){
-    if (keyframe_list_empty(pArr)) return;
-    if(pArr->key < index) return;
+    if (keyframe_list_empty(pArr)) return 0;
+    if(pArr->key < index) return 0;
     return pArr->pElements[index];
 }
 
@@ -158,7 +158,7 @@ void keyframe_list_toString(KEYFRAMELIST *pArr){
 	printf("[");
 	for (i = 0; i < pArr->key; i++)
 	{
-		printf("%d ,", pArr->pElements[i]);
+		printf("%ld ,", pArr->pElements[i]);
 	}
 	printf("] \n");
 	return;
