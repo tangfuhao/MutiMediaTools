@@ -285,7 +285,7 @@ bool NVENCWrapper::UpdateConfig(MediaEncodeConfig* config){
 }
 
 int NVENCWrapper::GetNalData(void* nal_data){
-    LOG(INFO) << "NVENCWrapper:  GetNalData";
+    // LOG(INFO) << "NVENCWrapper:  GetNalData";
     if(NalCacheDatas == NULL){
         NalCacheDatas  = (NalCacheData*)calloc(5, sizeof(NalCacheData) );
     }

@@ -48,8 +48,10 @@ namespace MetaWorks{
         private static extern long NativeMediaPlayerPosition(IntPtr mediaplayer);
         [DllImport ("MediaTools")]
         private static extern long NativeMediaPlayerLength(IntPtr mediaplayer);
-
-
+        [DllImport ("MediaTools")]
+        private static extern bool NativeMediaPlayerIsSeeking(IntPtr mediaplayer);
+        [DllImport ("MediaTools")]
+        private static extern void NativeMediaPlayerUpdateFrameData(IntPtr mediaplayer,IntPtr imageDataPtr);
         
 
 
@@ -72,8 +74,8 @@ namespace MetaWorks{
         }
 
         
-        [DllImport("MediaTools")]
-        static extern IntPtr GetRenderEventFlushBackBufferFunc(int playerID,IntPtr mediaplayer);
+        // [DllImport("MediaTools")]
+        // static extern IntPtr GetRenderEventFlushBackBufferFunc(int playerID,IntPtr mediaplayer);
         
 
 
@@ -150,7 +152,19 @@ namespace MetaWorks{
         private int playerIndex;
         static int IDIndex = 0;
 
+
+        private static HashSet<MediaPlayer> MediaPlayerSet = null;
+        public static bool AllPlayerDataIsUpdated(){
+            if(MediaPlayerSet == null) return false;
+            foreach (MediaPlayer player in MediaPlayerSet) {
+                if(player.IsSeeking()) return false;
+            }
+            return true;
+        }
+
         private void Awake() {
+            if (MediaPlayerSet == null) MediaPlayerSet = new HashSet<MediaPlayer>();
+            MediaPlayerSet.Add(this);
             playerIndex = ++IDIndex;
             playerIndex = (playerIndex << 1) |  0x1;
 
@@ -171,9 +185,17 @@ namespace MetaWorks{
 
         private void Update() {
             HandleMessageCallBack();
-            if(mediaplayerPtr != IntPtr.Zero && _effectVideoTexture){
-                GL.IssuePluginEvent(GetRenderEventFlushBackBufferFunc(playerIndex,mediaplayerPtr), playerIndex);
+            if(mediaplayerPtr != IntPtr.Zero && _effectVideoTexture != null){
+                // GL.IssuePluginEvent(GetRenderEventFlushBackBufferFunc(playerIndex,mediaplayerPtr), playerIndex);
+                Unity.Collections.NativeArray<byte> textureNA = _videoTexture.GetRawTextureData<byte>();
+                unsafe
+                {
+                    IntPtr textureDataPtr = (IntPtr)Unity.Collections.LowLevel.Unsafe.NativeArrayUnsafeUtility.GetUnsafePtr(textureNA);
+                    NativeMediaPlayerUpdateFrameData(mediaplayerPtr,textureDataPtr);
+                }
+                _videoTexture.Apply(false);
                 Graphics.Blit(_videoTexture, _effectVideoTexture, imageEffectMaterial);
+
 
                 if(!rawImage.enabled && isMediaDataUpdate){
                     // Debug.Log("视频视图显示");
@@ -391,6 +413,11 @@ namespace MetaWorks{
         public long GetMediaLength(){
             if(mediaplayerPtr == IntPtr.Zero) return -1;
             return mediaLength ;
+        }
+
+        public bool IsSeeking(){
+            if(mediaplayerPtr == IntPtr.Zero) return false;
+            return NativeMediaPlayerIsSeeking(mediaplayerPtr) ;
         }
 
         //停止并释放

@@ -259,6 +259,12 @@ void NativeMediaPlayerSeek(void* playerWrapper,long ms){
     player_seek((void*)hplayer, ms, 0);
 }
 
+bool NativeMediaPlayerIsSeeking(void* playerWrapper){
+    PLAYER_WRAPPER* player_wrapper = (PLAYER_WRAPPER*)playerWrapper;
+    if(player_wrapper == NULL) return false;
+    void* hplayer = player_wrapper->player;
+    return player_is_seeking((void*)hplayer) != 0;
+}
 
 
 
@@ -276,6 +282,17 @@ void NativeMeddiaPlayerGetParams(void* wrapper,MediaInfo* mediaInfo){
     player_getparam(hplayer, PARAM_PLAYER_INIT_PARAMS, &params);
     // log_print("2角度是：%d",params.video_rotate);
     mediaInfo->rotation_degress =  params.video_rotate;
+}
+
+void NativeMediaPlayerUpdateFrameData(void* wrapper,void* imageData){
+    PLAYER_WRAPPER* player_wrapper = (PLAYER_WRAPPER*)wrapper;
+    if(player_wrapper == NULL) return;
+    void* useData = player_wrapper->isWriteBackupData?player_wrapper->dataBuffer:player_wrapper->dataBufferBackup;
+    player_wrapper->lastReadBackupData = player_wrapper->isWriteBackupData; 
+
+
+    int copySize = player_wrapper->textureWidth * player_wrapper->textureHeight * 4;
+    memcpy(imageData,useData,copySize);
 }
 
 
@@ -306,62 +323,62 @@ void RegisterMessageCallback(FuncCallBack cb) {
 
 //----------------------------UNITY RENDERING CALLBACK-----------------------------
 
-PLAYER_WRAPPER* findPlayer(int eventID){
-    int playerID = eventID & ~0x1;
-    // printf("#=#===     findPlayerl    wrappers_length:%d  eventID:%d    playerID:%d \n ",gloabal_player_wrappers_length,eventID,playerID);
-    for (size_t i = 0; i < gloabal_player_wrappers_length; i++)
-    {
-        PLAYER_WRAPPER*  wrapperStruct = gloabal_player_wrappers[i];
-        if(wrapperStruct->playerID ==playerID ) return wrapperStruct;
-    }
-    return NULL;
-}
+// PLAYER_WRAPPER* findPlayer(int eventID){
+//     int playerID = eventID & ~0x1;
+//     // printf("#=#===     findPlayerl    wrappers_length:%d  eventID:%d    playerID:%d \n ",gloabal_player_wrappers_length,eventID,playerID);
+//     for (size_t i = 0; i < gloabal_player_wrappers_length; i++)
+//     {
+//         PLAYER_WRAPPER*  wrapperStruct = gloabal_player_wrappers[i];
+//         if(wrapperStruct->playerID ==playerID ) return wrapperStruct;
+//     }
+//     return NULL;
+// }
 
 // Plugin function to handle a specific rendering event
-static void UNITY_INTERFACE_API OnRenderEventFlushBackBuffer(int eventID)
-{
-    bool isRuntimePlayer = eventID & ((int)1);
+// static void UNITY_INTERFACE_API OnRenderEventFlushBackBuffer(int eventID)
+// {
+//     bool isRuntimePlayer = eventID & ((int)1);
     
-    PLAYER_WRAPPER* player_wrapper = findPlayer(eventID);
-    //检查，是否准备写数据
-    if(player_wrapper == NULL || player_wrapper->textureID == NULL) return;
+//     PLAYER_WRAPPER* player_wrapper = findPlayer(eventID);
+//     //检查，是否准备写数据
+//     if(player_wrapper == NULL || player_wrapper->textureID == NULL) return;
 
     
     
 
-    // if(player_wrapper->lastReadBackupData == player_wrapper->isWriteBackupData){
-    //     log_print("视频获取  跳过一帧");
-    //     return;
-    // }
-    // log_print("拷贝  渲染一帧");
-    void* useData = player_wrapper->isWriteBackupData?player_wrapper->dataBuffer:player_wrapper->dataBufferBackup;
-    player_wrapper->lastReadBackupData = player_wrapper->isWriteBackupData; 
+//     // if(player_wrapper->lastReadBackupData == player_wrapper->isWriteBackupData){
+//     //     log_print("视频获取  跳过一帧");
+//     //     return;
+//     // }
+//     // log_print("拷贝  渲染一帧");
+//     void* useData = player_wrapper->isWriteBackupData?player_wrapper->dataBuffer:player_wrapper->dataBufferBackup;
+//     player_wrapper->lastReadBackupData = player_wrapper->isWriteBackupData; 
     
-    int textureWidth = player_wrapper->textureWidth;
-    int textureHeight = player_wrapper->textureHeight;
-    void* textureHandle = player_wrapper->textureID;
-    GLuint gltex = (GLuint)(size_t)(textureHandle);
-	// Update texture data, and free the memory buffer
-	glBindTexture(GL_TEXTURE_2D, gltex);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, textureWidth, textureHeight, GL_RGBA, GL_UNSIGNED_BYTE, useData);
+//     int textureWidth = player_wrapper->textureWidth;
+//     int textureHeight = player_wrapper->textureHeight;
+//     void* textureHandle = player_wrapper->textureID;
+//     GLuint gltex = (GLuint)(size_t)(textureHandle);
+// 	// Update texture data, and free the memory buffer
+// 	glBindTexture(GL_TEXTURE_2D, gltex);
+// 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, textureWidth, textureHeight, GL_RGBA, GL_UNSIGNED_BYTE, useData);
 
 
-    // pthread_mutex_unlock(&player_wrapper->lock);
+//     // pthread_mutex_unlock(&player_wrapper->lock);
 
-}
+// }
 
 
 
-// Freely defined function to pass a callback to plugin-specific scripts
-UnityRenderingEvent UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetRenderEventFlushBackBufferFunc(int id,void* _wrapper)
-{
-    PLAYER_WRAPPER* player_wrapper = (PLAYER_WRAPPER*)_wrapper;
-    if(player_wrapper->playerID < 2){
-        // printf("#=#===     push call  1 id:%d  playerID:%d \n ",id,player_wrapper->playerID);
-        int playerID = id & ~0x1;
-        player_wrapper->playerID = playerID;
-        // printf("#=#===     push call  2  playerID:%d \n ",player_wrapper->playerID);
+// // Freely defined function to pass a callback to plugin-specific scripts
+// UnityRenderingEvent UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetRenderEventFlushBackBufferFunc(int id,void* _wrapper)
+// {
+//     PLAYER_WRAPPER* player_wrapper = (PLAYER_WRAPPER*)_wrapper;
+//     if(player_wrapper->playerID < 2){
+//         // printf("#=#===     push call  1 id:%d  playerID:%d \n ",id,player_wrapper->playerID);
+//         int playerID = id & ~0x1;
+//         player_wrapper->playerID = playerID;
+//         // printf("#=#===     push call  2  playerID:%d \n ",player_wrapper->playerID);
 
-    }
-    return OnRenderEventFlushBackBuffer;
-}
+//     }
+//     return OnRenderEventFlushBackBuffer;
+// }

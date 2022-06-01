@@ -58,7 +58,8 @@
         "logger.h": "c",
         "__functional_base": "cpp",
         "locale": "cpp",
-        "__string": "cpp"
+        "__string": "cpp",
+        "time.h": "c"
     }
     
 }

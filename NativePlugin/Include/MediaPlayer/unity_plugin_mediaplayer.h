@@ -46,6 +46,7 @@ void NativeMediaPlayerSeek(void* playerWrapper,long ms);
 long NativeMediaPlayerPosition(void* playerWrapper);
 long NativeMediaPlayerLength(void* playerWrapper);
 void NativeMeddiaPlayerGetParams(void* wrapper,MediaInfo* mediaInfoPtr);
+void NativeMediaPlayerUpdateFrameData(void* wrapper,void* imageData);
 
 void UnityPostMessage(void *_wrapper, int32_t msg);
 

@@ -553,7 +553,7 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
     bool isSeekOps = false;
     //是否进入seek状态
     bool isSeekQuest = false;
-    long frame_span = 1000 / 10;
+    long frame_span = 1000 / player->init_params.video_frame_rate;
 
     int64_t vpts = player->vframe.pts * 1000;
     // log_print("seek判断 seek_pos:%ld,  vframe pts:%ld  ",player->seek_pos,vpts);
@@ -1117,6 +1117,12 @@ void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
     PLAYER *player = (PLAYER*)hplayer;
     if (!hplayer) return;
     render_setrect(player->render, type, x, y, w, h);
+}
+
+int player_is_seeking(void *hplayer){
+    PLAYER    *player = (PLAYER*)hplayer;
+    if (!hplayer) return 0;
+    return player->status & (PS_F_SEEK | player->seek_req);
 }
 
 void player_seek(void *hplayer, int64_t ms, int type)
