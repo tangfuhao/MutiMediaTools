@@ -394,16 +394,16 @@ bool NVENCWrapper::ConfigForLowLatency(int nWidth,int nHeight){
     enc->CreateDefaultEncoderParams(initializeParams, encodeCLIOptionsPtr->GetEncodeGUID(), encodeCLIOptionsPtr->GetPresetGUID(),
                 encodeCLIOptionsPtr->GetTuningInfo());
     
-    encodeConfig->gopLength = 60 * 60 * 2;
+    encodeConfig->gopLength = 30 * 5 ;
     encodeConfig->frameIntervalP = 1;
 
     if (encodeCLIOptionsPtr->IsCodecH264())
     {
-        encodeConfig->encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+        encodeConfig->encodeCodecConfig.h264Config.idrPeriod = 30 * 5;
     }
     else
     {
-        encodeConfig->encodeCodecConfig.hevcConfig.idrPeriod = NVENC_INFINITE_GOPLENGTH;
+        encodeConfig->encodeCodecConfig.hevcConfig.idrPeriod = 30 * 5;
     }
 
     

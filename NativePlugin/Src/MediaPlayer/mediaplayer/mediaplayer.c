@@ -561,6 +561,7 @@ static void handle_fseek_or_reconnect(PLAYER *player, int reconnect)
     if(vpts < 0){
         isSeekQuest = isSeekOps = true;
     }else if(player->seek_pos < vpts){
+        log_print("往前seek");
         //大于一帧的间隔
         if(vpts - player->seek_pos > frame_span){
             // log_print("往前seek,大于一帧间隔");
@@ -1121,8 +1122,14 @@ void player_setrect(void *hplayer, int type, int x, int y, int w, int h)
 
 int player_is_seeking(void *hplayer){
     PLAYER    *player = (PLAYER*)hplayer;
-    if (!hplayer) return 0;
-    return player->status & (PS_F_SEEK | player->seek_req);
+    if (hplayer == NULL) return 0;
+
+    
+    av_log(NULL, AV_LOG_WARNING, "seek busy 1 !\n");
+    int  ret =  player->status & (PS_F_SEEK | player->seek_req);
+    if(ret){
+        log_print("player->status : %d",player->status);
+    }
 }
 
 void player_seek(void *hplayer, int64_t ms, int type)

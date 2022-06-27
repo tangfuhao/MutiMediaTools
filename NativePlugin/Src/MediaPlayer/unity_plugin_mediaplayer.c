@@ -153,9 +153,9 @@ int UnityTextureLock(void* _wrapper, int textureWidth,int textureHeight,UnityTex
 
         
         wrapper->dataBuffer = malloc(rowPitch * textureHeight  * 4);
-        // memset(wrapper->dataBuffer,0,rowPitch * textureHeight  * 4);
+        memset(wrapper->dataBuffer,255,rowPitch * textureHeight  * 4);
         wrapper->dataBufferBackup = malloc(rowPitch * textureHeight  * 4);
-        // memset(wrapper->dataBufferBackup,0,rowPitch * textureHeight  * 4);
+        memset(wrapper->dataBufferBackup,255,rowPitch * textureHeight  * 4);
         wrapper->textureWidth = textureWidth;
         wrapper->textureHeight = textureHeight;
     }
